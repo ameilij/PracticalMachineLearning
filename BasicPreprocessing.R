@@ -35,4 +35,10 @@ trainCapAveS <- predict(preObj, training)$capitalAve
 mean(trainCapAveS)
 sd(trainCapAveS)
 
+# Pass the preProcess command in Caret as an argument
+set.seed(32342)
+modelFit <- train(type ~ ., data = training, preProcess = c("center", "scale"), method = "glm")
+modelFit
+
+
 
