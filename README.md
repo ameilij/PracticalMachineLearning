@@ -1,4 +1,5 @@
 # Practical Machine Learning
+(https://github.com/ameilij/PracticalMachineLearning/blob/master/JHU-Logo-Square-Mini_180px.png)
 COURSERA Practical Machine Learning Class
 Johns Hopkins University
 
