@@ -1,7 +1,7 @@
 # Practical Machine Learning
-![JHU](https://github.com/ameilij/PracticalMachineLearning/blob/master/JHU-Logo-Square-Mini_180px.png)
-COURSERA Practical Machine Learning Class
-Johns Hopkins University
+<center>![JHU](https://github.com/ameilij/PracticalMachineLearning/blob/master/JHU-Logo-Square-Mini_180px.png)</center>
+
+__COURSERA Practical Machine Learning Class | Johns Hopkins University__
 
 This is my repository for all code examples, homework and investigation of Machine Learning concerning COURSERA Johns Hopkins University Practical Machine Learning class. The following files are available for all to use.
 
