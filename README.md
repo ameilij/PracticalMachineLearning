@@ -1,5 +1,6 @@
-# PracticalMachineLearning
+# Practical Machine Learning
 COURSERA Practical Machine Learning Class
+Johns Hopkins University
 
 This is my repository for all code examples, homework and investigation of Machine Learning concerning COURSERA Johns Hopkins University Practical Machine Learning class. The following files are available for all to use.
 
