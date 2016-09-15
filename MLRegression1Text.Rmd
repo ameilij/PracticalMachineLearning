@@ -1,0 +1,281 @@
+---
+title: "Machine Learning Example with Linear Models"
+author: "Ariel E. Meilij"
+date: "September 10, 2016"
+output: 
+  pdf_document: 
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+Learning data science is not easy. There is a lot of work and knowledge involved, especially since it is a rather new topic and not everyone seems to agree on the methodology. As I take my own baby steps into __Machine Learning__ I wanted to share an easy example that helped me a lot to get off the ground. I hope that some people share my hesitations on machine learning methodology. I found it simple to train a model but failed repeatedly to apply the same model to the test set. It took a lot of coding and patience to learn the proper steps using one of the examples from the COURSERA Practical Machine Learning call (part of the Johns Hopkins Data Science Specialization.) Here is hoping you can follow along and get the basics down before moving on to much more specialized prediction methods. 
+
+## The Old Faithful Data Set
+We will start small with a very simple data set: the Old Faithful geyser. I have never been anywhere close to Old Faithful, but even being someone living in Latin America I can recall my childhood watching Yogi Bear cartoons, and how the geyser used to erupt every now and then. This is a very simple data set, it has just two variables, eruptions and waiting. From the data set itself we can see the description (which I am simply copying and pasting):
+
+> Waiting time between eruptions and the duration of the eruption for the Old Faithful geyser in Yellowstone National Park, Wyoming, USA.
+
+Let's load the data set and get a sense of what it does.
+
+```{r}
+data(faithful)
+head(faithful)
+```
+
+You can see it is a very simple data set indeed. So far, so good!
+
+But in order to get some machine learning going, we will set a simple objective. Could we use machine learning techniques to predict with a certain confidence interval the next eruption based on waiting times? Having correctly phrased the problem, we will try to:
+
+* Load the complete data set
+* Break the data into a training set for analyzing our probable solution and a test set to check how close (or not) we are from the truth
+* Visualize some of the implications of the data set and the performance of our prediction algorithm using EDA (explorative data analysis)
+* And finally, use our predictive model with our test data to ensure we are on the right track and our predictions are sound
+
+## Begin the ML Process
+The basic idea behind our machine learning process is to break our data into two sets: one for training our prediction algorithm and another for testing our prediction algorithm once we are comfortable with it. It's important to understand two key principles in machine learning:
+
+* All the work behind explorative data analysis and finding the right prediction algorithm is done on the training set, and only in the training set. That's what is for!
+* We only use the test set to properly _test_ our prediction algorithm once we feel it's working, and nothing else. We don't change, adapt, or rework our prediction algorithm with test data, no matter how tempting this idea feels at times.
+
+There is a very fundamental concept in Machine Learning, which is worth understanding correctly, and it deals with in-sample and out-of-sample error.
+
+1. In-sample error is the error rate you get on the same data set you used to build your predictor. Sometimes it's also called re-substitution error. The problem with in-sample error is that it's very optimistic since it tunes to the data noise of your data set. That's why it matches so well!
+2. Out-of-Sample error is the error rate you get on a new data set. This is sometimes called generalization error and it's a more honest error rate. Think about it as the data set telling you how well your predictor really works.
+
+We care a lot more about out-of-sample error than in-sample error. The reason is over-fitting, the effect of your predictor matching the solution so superbly since it tunes to the noise so well. As in all things in life, it pays to be humble in data science. 
+
+Now that we got that out of the way, let's start preparing. The first thing we will do is load the Caret package and some additional libraries we will need to work with. The Caret package in a wonderful libraries of functions that help us speed the process of working with data sets and Machine Learning. Caret is the acronym for _Classification And REgression Training_. The package contains tools for:
+
+* data splitting
+* pre-processing
+* feature selection
+* model tuning using re-sampling
+* variable importance estimation
+* more functionality than we could publish here!
+
+Using R it's easy to load the packages like so:
+
+```{r}
+library(caret)
+set.seed(333)
+```
+
+R loads some libraries it will need, such a __ggplot2__ and __lattice__ for graphs. Those who wonder why I set the system seed to value _333_, it's just a way to freeze random variables so I will always get the same results while I work this document. It's good to get into the habit of setting your seed (you can decide the value, I just used 333 for convenience) so your work will always be reproducible and other data scientists can check the veracity of your statements.
+
+Now that we loaded the Caret library, we can split our data into two data sets: a training set to build our predictor, which will have around 50% of the data, and a test set to later validate our findings.
+
+```{r}
+inTrain <- createDataPartition(y = faithful$waiting, p = 0.5, list = FALSE)
+trainFaith <- faithful[inTrain, ]
+testFaith <- faithful[-inTrain, ]
+head(trainFaith)
+```
+
+That is a lot of code, so let's go line by line.
+
+The first line creates a variable, inTrain, using the Caret function createDataPartition. This function takes the value of faithful$waiting, which is the vector of waiting times, and slices the data using whatever value we provided with p = x. Here x is set to 0.5, which translate to 50% of the data being left in the training. I have set __list = FALSE__ since I want a matrix and not a list of values. 
+
+The second step is to create a data set - the training set - building it from all the records of the Old Faithful data set that fall into the training set according to the inTrain index. If this sounds complicated, we can get under the hood and check what is inside the famous __inTrain__:
+
+```{r}
+head(inTrain)
+```
+
+As you can see, it's just a bunch of indexes. So when we tell R to assign to trainFaith those records of faithful that fall under the index of inTrain (the brackets [inTrain, ]) it does just that. It looks inside inTrain, picks the first record, see what number of record that points into the faithful data set, and copies it to the trainFaith set. If you don't believe it we can check. 
+
+* the record trainFaith[3, ] should have exactly the same information as whatever the third record in inTrain is pointing at inside the faithful data set. 
+* inTrain[3, ] points at record five
+* faithful[5, ] has two values, eruptions time equal to 4.533 and waiting time equal to 85
+* not surprisingly, trainFaith[3, ] has exactly the same values
+
+For the none believers still, I printed out below:
+
+```{r}
+inTrain[3, ]
+faithful[5, ]
+trainFaith[3, ]
+```
+
+To create the test set, named testFaith, we simply tell R to assign to this new test set whatever is not in the inTrain indexes, thus the funny faithful[-inTrain, ] assignation. Finally we just look at the train set to see what it looks like (it looks like random records of the original data set... nothing more!)
+
+The syntaxis can seem daunting, but once you get the hang of it, and more importantly, understand what it going on under the hood, you will be using it without second thought. 
+
+So we have a training set; how about we checked it our to see any potential relationships? The best way to do this is through some easy visualization (and we will be using EDA a lot here.)
+
+```{r}
+# Look at relationship with a visual graph
+plot(trainFaith$waiting, trainFaith$eruptions, pch = 19, col = "blue", xlab = "Waiting Time", ylab = "Eruption Duration Time")
+```
+
+I will start commenting my code in hopes everyone starts commenting their code. It's not only great coding practice, it makes sense down the line when you start forgetting what you wrote down. The plot shows that there seems to be a relationship between waiting time and eruption time. This is the sort of relationship that lends itself for a linear model as a predictor. 
+
+## Building our Predictor Using the Training Data
+Linear regression and general linear models are great prediction formulas to use in Machine Learning. They are probably the simplest to implement and maybe not as glamorous as other techniques. But in this particular case, and in any case where a linear relationship is evident, they will be your go-to predictor of choice. 
+
+Let's build the predictor model using linear regression in R together:
+
+```{r}
+# Fit linear model
+lm1 <- lm(eruptions ~ waiting, data = trainFaith)
+summary(lm1)
+```
+
+Good! Our linear model was built easily using the __lm__ function, and telling it to predict __eruptions__ based on the variable __waiting__ using the training data in the __trainFaith__ set. It's so simple it almost makes me guilty. When we ask R for a summary it tells us that the model has an intercept of -1.7927 and a coefficient for the waiting variable of 0.0739. So if you give me a waiting time, any waiting time, and ask me to predict the eruption time, I could probably take a good estimation using my model by multiplying waiting time by 0.0739 and subtracting 1.7927 (or adding -1.7927 which is the same.) Let's do just that using R:
+
+```{r}
+# Let's predict a new value manually
+newvalue = 80
+coef(lm1)[1] + coef(lm1)[2] * newvalue
+```
+
+The example above assumes we pass 80 as a value for waiting time and we get 4.12 for a predicted value. How close are we? Let's check other values with a similar waiting time of 80 and peek:
+
+```{r}
+faithful[faithful$waiting == 80, ]
+range(faithful$eruptions[faithful$waiting == 80])
+```
+
+The values for eruption in real life go from 3.817 to 4.833, so when we predict 4.12 we are not so far from the truth. Those with more mathematically inclined minds (I suspect 99.9% of those reading this blog) will have checked when we call __summary(lm1)__ that the R-squared value of this model is around 0.80, so we can conclude it is a modestly accurate model. 
+
+There is of course a better way to do all this predicting than hand-coding the intercept and coefficient values. This was a rather short formula, but in the future our models could have several coefficients and it would get very boring to type them all. We can use the __predict__ function to speed things up!
+
+```{r}
+newdata = data.frame(waiting = 80)
+predict(lm1, newdata)
+```
+
+First and foremost, yes, we get the same prediction value. That sort of validates our math abilities. Second, let us explain how the predict function works. When we created lm1, we created a model object to use in whatever estimations we want. This model knows a lot of things, but mainly it knows that if someone gives it a data set of waiting times, it can predict fairly accurately the estimated eruption time using its intercept and coefficient values. So we can tell the predict function to use this model to predict any data set we pass onto it along with the model. In order for the predict model not to break, we create a new data set called _newdata_ as a data frame with just one value, the waiting variable set to 80. 
+
+One is tempted to play with predict; Let's say we have in our training set record fifty-five:
+
+```{r}
+trainFaith[55, ]
+```
+
+This record says it has a waiting time of 52 and an eruption time of 1.783. What would happen if we feed our model this record using predict? Let's try:
+
+```{r}
+predict(lm1, trainFaith[55, ])
+```
+
+Okay, nothing broke down and we get an estimated eruption time of 2.05 which seems a little off from the real 1.783 but measuring residuals (the part of the real result which is not explained by our model) is part of the life of any Statician or Data Scientist. By now you know how the predict function works and we can plot real values versus our mode predictor.
+
+```{r}
+plot(trainFaith$waiting, trainFaith$eruptions, pch = 19, col = "blue", xlab = "Waiting", ylab = "Duration")
+lines(trainFaith$waiting, lm1$fitted.values, lwd = 3, col = "green")
+```
+
+I am not explaining graphs one by one since there are millions of blogs that do so already much better, but suffice to say here we:
+
+* plot the real waiting times from trainFaith$waiting in the x axis
+* plot the real eruptions times from trainFaith$eruptions in the y axis
+* plot our linear regression model using a line which is based on points on the x axis from the trainFaith$waiting and the prediction of said points taken from the fitted.values vector packed inside the lm1 model
+
+Yes, that was a little complicated and it took me sometime to understand. When we plot the regression line we need to coordinates: the x axis coordinate we know, since it is the waiting values to use to predict the model and those are basically data from real life. But the points on the y axis are predictions, and as such we need to predict. In this case we used the predicted values from the model lm1 which are stored in lm1$fitted.values. Mind you, these are exactly the same as when we run the predict function with the training data. Just out of curiosity we will check:
+
+```{r}
+head(lm1$fitted.values)
+head(predict(lm1, trainFaith))
+```
+
+The use of one or the other depends on your particular level of uber hacker. 
+
+## Validating our Model with Testing Data
+So far we created a training set and a test set, and we built a descriptor on our training data validating our accuracy through various EDA visualizations. Now that we know our predictor is sufficiently robust, we should use the test data to put it through more extreme scrutiny. 
+
+Our initial validation will include plotting the training data and our linear regression model right next to the test data and our linear regression model using the test data. Thr first part is easy, we've done that already. The second part sound tricky but we will walk the code together to undestand it. 
+
+```{r}
+par(mfrow = c(1,2))
+
+plot(trainFaith$waiting, trainFaith$eruptions, pch = 19, col = "blue", main = "Train Data Set", xlab = "Waiting Time", ylab = "Duration Time")
+lines(trainFaith$waiting, predict(lm1), lwd = 3)
+
+plot(testFaith$waiting, testFaith$eruptions, pch = 19, col = "red", main = "Test Data Set", xlab = "Waiting Time", ylab = "Duration Time")
+lines(testFaith$waiting, predict(lm1, newdata = testFaith), lwd = 3)
+```
+
+This is one of the parts that took me the most to understand. Plotting the waiting times in the x-axis and the eruptions times in the y-axis should be simply, is just plotting real data from the test set. When we plot the linear regression line, watch how we use the same waiting times from real life from the test data set, but we feed the predict function our model lm1 with a new data set, the test data set. This is when the line reads __predict(lm1, newdata = testFaith)__.
+
+In my case the syntaxis confused me. Why __newdata = testFaith__? R is full of idiosyncracies of syntax and that does not help. When in doubt, turn to the console and type different approaches to get the facts straight. We can do that right now and double check:
+
+```{r}
+head(predict(lm1, newdata = testFaith))
+head(predict(lm1, testFaith))
+```
+
+The syntaxis is just to make the command clearer if a little verbose. Both are the same and throw the same results. Basically we plot the x points from the test data (real data) and predict the y points using our lm1 model (which we built using training data) but just pass the new test data from testFaith to make it match. In this case we cannot use fitted.values since these are from the train model. The predictor is a model and a model is a complete entity on its own. We can use it to predict with other data, for example the test set, but then it just gives us a set of predicted values, it doesn't have properties such as coefficients and fitted values like the original model had. 
+
+One valid question could be the following. Our original model trained with the train set had a R-squared value of 0.80:
+
+```{r}
+summary(lm1)$r.squared
+```
+
+Can we calculate r-squared from the results of the testing set? The answer is yes since it is after all a rather simple formula:
+
+```{r}
+# R-squared of two data sets
+summary(lm1)$r.squared
+a <- sum((predict(lm1, testFaith) - mean(testFaith$eruptions))^2)
+b <- sum((testFaith$eruptions - mean(testFaith$eruptions))^2)
+print(a/b)
+```
+
+We can see that the value for R-Squared in the training set is 0.80 while in the testing set is only 0.75. This is fine, your testing model is a more humble and honest opinion of your predictor function than the numbers you will get from your training set, so we expect them to be lower. A better way to test is to compared the differences from the residuals (that which is not explained from the model, or to put it more graphically, the distance between where the x,y point is in real life versus where your model actually plotted x,y.) That is simply the square root mean error; we take all those distances, square them just like we square all values in Statistics to offset negative versus positive values, and then square the result to bring the number back to reality. 
+
+```{r}
+# Test errors for datasets
+sqrt(sum((lm1$fitted.values - trainFaith$eruptions) ^ 2))
+sqrt(sum((predict(lm1, newdata = testFaith) - testFaith$eruptions) ^ 2))
+```
+
+The RMSE for the test set is bigger than the one for the training set, but that is as expected. 
+
+One final musing, and one typical of Statistics, is to check for confidence intervals. Let us look at sample code before disecting it:
+
+```{r}
+# Prediction intervals
+pred1 <- predict(lm1, newdata = testFaith, interval = "prediction")
+ord <- order(testFaith$waiting)
+plot(testFaith$waiting, testFaith$eruptions, pch = 19, col = "blue")
+matlines(testFaith$waiting[ord], pred1[ord, ], type = "l", col = c(1,2,2), lty = c(1,1,1), lwd = 3)
+```
+
+Let's go line by line:
+
+* the first line assigns to variable __pred1__ a prediction in the form of a model, lm1, using the test data as newdata for the formula, and specifying the prediction as a confidence interval in the bit <code>interval = "prediction"</code>. Personally, it has taken me some time to get the hang of those R idioms (and there are plenty...) but it suffices to say that even when it adds complexity to the code, if you put that bit in the last part of any prediction function R is kind enough to return a confidence interval, not just the linear model function in form of a line.
+
+* the second line is just prepping the chart order by saving the particular order of the variable waiting from the testing data into the variable __ord__. The order function returns a permutation in either ascending or descending order.
+
+* The third line is just a plot of waiting and eruption times from the testing data set.
+
+* matlines is a function which plots columns of one matrix against the column of another. When we asked for a confidence interval, we did not get one line, we got three lines, the prediction and the upper and lower bounds. That comes packed R style into a matrix-like object and we can simplify plots by using the <code>matlines</code> command. First we pass the waiting coordinate in the proper order with <code>[ord, ]</code> and then the second coordinate which is really the corresponding prediction using <code>pred1[ord, ]</code>. The rest of the code is just specifying line colors and types; since we are plotting three lines - one predictor and two bounds - we can use the ubiquitous <code>c(1,1,1)</code> vector to pass the three values at the same time. 
+
+Once we get the plot is reconforting to see that our prediction model pretty much has everything under its upper and lower confidence interval. 
+
+## Using stepAIC to Systematically Build Linear Models
+Do we have to build our prediction models by hand? I am not a Machine Learning expert, but I have found that among experts, two different trends confront each other (oh, the confrontational wars of methodology and theories in Science! Makes me feel so nerdy!) The two camps are:
+
+1. Those who would rather use Explorative Data Analysis to explore the data and build the descriptor with training data.
+2. Those who will result to the rather controversial <code>stepAIC</code> function and the subtleties of stepwise selection. You can perform stepwise selection (forward, backward, both) using the stepAIC( ) function from the MASS package. stepAIC( ) performs stepwise model selection by exact AIC.
+
+I use stepwise selection and I cannot say it has done me any wrong. On the other hand, I sell shoes for a living and analyze large data sets to sell more shoes, which is hardly the equivalent in any case of those doing real science like genomics or medical research. Stepwise analysis can save time looking for the right combination of descriptors, specially if you have a large amount of terms or you model turns out to have augmentative terms. Below is my own code using stepwise analysis.
+
+```{r}
+## Use stepAIC analysis for computer driven model fit 
+library(MASS)
+pred2 <- glm(eruptions ~ ., data = trainFaith)
+summary(pred2)
+```
+
+This is just a template example; the data set has only two variables, so you will not get any new results on predictors. The original model __lm1__ has exactly the same intercept and coefficient than the newer __pred2__ using stepwise analysis. What is interesting is knowing that you have a choice when you are faced with multiple variables and the relationship between them is not so clear. 
+
+## Final Conclusions
+This has been a small example using bare-bone templates and techniques. We have not touched upon the subjects of preprocessing data or sampling large data sets. But believe me when I tell you that a lot can be done using a simple training and test set in conjunction with EDA. Do not disregard linear models and linear regression as an appropiate ML method; many real-life problems have parsimonious solutions using General Linear Models before moving on to more exacting methods. It is easier to experiment with linear models and get experience building more complicated predictors (adding more terms or augmentative terms for example) than to lose time with other techniques such as Random Forests or Support Vector Machines without having the basics firmly grounded. 
+
+Ariel E. Meilij - All Materials Subject to Creative Commons License 
