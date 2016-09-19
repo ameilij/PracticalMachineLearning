@@ -1,0 +1,134 @@
+The following problem was taken from the __Practical Machine Learning__ course by Johns Hopkins University, offered through the COURSERA website. The quiz was specially challenging for me, as Machine Learning is in some way the culmination of any Data Scientist (if not the only topic maybe the one which offers the most fun.) However the problem was complicated by the fact that the obligatory use of the __CARET__ package was affected by a change in the syntax. It is my objective in this blog/short paper to explain the importance of Principal Component Analysis and the correct implementation using the __caret package__.  
+
+## The Problem: The Alzheimer Data Set
+The problem is presented as follows:
+
+> Create a training data set consisting of only the predictors with variable names beginning with IL and the diagnosis. Build two predictive models, one using the predictors as they are and one using PCA with principal components explaining 80% of the variance in the predictors. Use <code>method="glm" </code> in the train function. What is the accuracy of each method in the test set? Which is more accurate?
+
+Alzheimer is a sad disease that attacks the minds of elderly people. The __AlzheimerDisease__ dataset has actually to sets of data. One is a lengthy list of predictors (130 in actuality) related to the probable causes of Alzheimer. The second set of data is an associated file with the results of either control or impaired patient. Why did the COURSERA staff chose to analyze just the variables starting with _IL_? One might think this makes for additional code abilities that a Data Scientist might need in real life. But the IL variables are important in Alzheimer research because they relate to the Interleukin-1 family. The Interleukin-1 family (IL-1 family) is a group of 11 cytokines, which plays a central role in the regulation of immune and inflammatory responses to infections or sterile insults. It is an excellent example of how Data Science can help Public Health in the agile predictive power of potential patients affected by Alzheimer.
+
+Part of the necessary code to load the initial libraries and datas is provided by the exam. Let's take a look at the code.
+
+```{r}
+library(caret)
+library(AppliedPredictiveModeling)
+data(AlzheimerDisease)
+set.seed(3433)
+
+adData = data.frame(diagnosis,predictors)
+inTrain = createDataPartition(adData$diagnosis, p = 3/4)[[1]]
+training = adData[inTrain,]
+testing = adData[-inTrain,]
+```
+We will walk each line of code to get a good understanding of what it's going on, especially if the reader is new to R and its idioms.
+
+* The first line calls the Caret package. Caret stands _C_lassification _A_nd _RE_gression _T_raining_ and is a set of functions that attempt to streamline the process for creating predictive models. The package contains tools for: data splitting, pre-processing, feature selection, model tuning using resampling, variable importance estimation, as well as other functionality. All these things could be done by hand, but it is __much easier__ to do them using Caret's functionality.
+
+* The second line calls the __AppliedPredictiveModeling__ library. This package has a few functions and several data set for the Springer book 'Applied Predictive Modeling' by authors Max Kuhn and Kjell Johnson. Max Kuhn is the author of the Caret package also.
+
+* The third line is the call to the AlzheimerDisease data set. In R you load your data sets into memory, and as long as you have the capacity in RAM, you can analyze your data as you desire.
+
+* The fourth line calls the random number generator at sets the seed at a specific number: 3433. This is done to break the random value and ensure all students get the same split between training and testing sets. But it is also important for every Data Scientist to set the seed value so her or his work will be reproducible by others.
+
+What happens in the next four lines is one of the basis for Machine Learning, the slicing of data into training and test sets. If you are new to Machine Learning, we can summarize that the analyst will break the data into two groups. The first group will be used to train the data to prediction models, and all the work will be done with these data. After one has come to a reasonable parsimonious model, the last validation is done with the test data to either retain or not the model.
+
+* The fifth line binds the two data sets (diagnosis categorical outcome and predictor data) into one neat data frame. Data frames are the preferred data structure in R and most of the functions will work better with a data frame as opposed to a more basic structure such as a list or matrix.
+
+* In line six, the variable <code>inTrain</code> is created via the <code>createDataPartition</code> function. This function takes the outcome variable (in our case diagnosis) and creates a slicing where 3/4 of the records will be used for training purpose. Note the double bracket notation at the end. This is not the normal way to use the function. Much more preferable is to add the <code>list = FALSE</code> syntax to the function call in order to let R know that the variable will take the form of a list of indexes, and not just a list. Why this is so will be evident in the next two lines of code.
+
+* Line seven created the training data set by assigning from the adData set only those records that belong to the inTrain index. Thus the use of bracket notation in <code>[inTrain, ]</code>.
+
+* Finally line eight creates the test data set by assigning from the adData set only those records __not__ in the inTrain set. As the reader can see, this is easily done in R by using the minus sign in front of the inTrain variable, which is after all just a list of indexes.
+
+Before moving on with the analysis, we will take a moment to peek into the data.
+
+``` {r}
+dim(training)
+head(training)
+```
+
+By calling the <code>dim</code> command we can see that the training set is composed of 251 records, each with 131 variables. When we call the first six rows of data with the <code>head</code> command it is easy to look track of all the variables in the screen. We are interested in those with the __IL__ nomenclature, but we will come back here in a moment. Before that, we will peek into the test data set.
+
+```{r}
+dim(testing)
+head(testing)
+```
+
+Not too surprisingly we see that the testing data set has also 131 variables and only 82 rows, or roughly 25% of the available 333 from the complete adData set. Our initial data sets are now complete, and in many machine learning processes this would be enough to start. But the problem here is a bit more focused. We want to look for now at a smaller set of variables, the Interleukin-1 family which all start with IL. We can solve this by looking at the variable list with <code>str(training)</code> and writing down the name of the column names to extract the subset by hand or we can do this programatically. In our case, we should proceed programmatically, but the author accepts that when the work includes two or three variables, the _by hand_ approach is easier.
+
+Our algorithm will be easy: we will use a regular expression to look at all the column names that begin with _IL_ and save those is a list. Then we will extract the index positions and use those indexes to build two new sets: one for training and one for testing but with only the outcome and predictors we need.
+
+```{r}
+# Rebuild train and test set for this exercise
+ILnames <- grepl("^IL", colnames(training))
+ILcol <- names(training[ILnames])
+ILindex <- which(colnames(training)%in%ILcol)
+train2 <- training[, c(1, ILindex)]
+test2 <- testing[, c(1, ILindex)]
+```    
+At this stage we have a finalized training and testing set to work, so let us proceed to the first part of the analysis: train a simple General Linear Model and test of its accuracy.
+
+```{r}
+# Method with normal predictors
+fit1 <- train(diagnosis ~ ., data = train2, method = "glm")
+```
+
+The way we are building our model is to use the <code>train</code> function from the Caret package and pass it a few parameters.
+
+* The first parameter is similar to that used in a linear model function. On the right hand side of the tilde is diagnosis, our outcome variable. On the left hand side the dot or period is a way to tell R to train our model with diagnosis as the outcome variable and every other variable as a predictor.
+
+* The second parameter tells the train function to use the train2 data set as its data source.
+
+* The third parameter tells the train function to use a _general linear model_ for our case. If we were to leave the method unchecked, the train function will chose for us from the best model depending on the source data. This could range from random forest to other more advanced models.
+
+* The result, a new predictor model, will be stored in the variable fit1 and can be easily seen by using the related _finalModel_ variable or by using the <code>summary(fit1)</code> call.
+
+```{r}
+summary(fit1)
+```
+
+What can we do with a model object? Many things, and the first one we will do is check exactly what we have done. We gave the train function a training set of data, and the functin gave us back a model objects that can do predictions based on what it was trained. So the first logical thing is to check how well it does this. Our presumption is that since it trained with the training data, it should do at least a reasonable job of predicting from this set. We can check this assumption by creating a confusion table confronting our predictions to the reality of the data.
+
+* The real results of diagnosis are stored in the train2$diagnosis column; these are easy to access
+
+* We never predicted new values, but since we have a model object we can use the predict function to get a set of predictions based on two parameters: a prediction model and a new set of data to predict on.
+
+```{r}
+confusionMatrix(train2[, 1], predict(fit1, newdata = train2[, -1]))
+```
+
+The code above looks a bit cryptic but let's walk together.
+
+* The function confusionMatrix does the heavy lifting by receiving two parameters and giving back much more that what we asked.
+
+* We pass the true values which are stored in the train2$diagnosis column; here we use train2[, 1] which is exactly the same but using bracket notations means every row of the first column.
+
+* The we pass the predicted values using the predict function. This function has two parameters, a model which in our case is fit1, and a new set of data. For the set of data we pass the complete train2 data set except the first column, since that is our outcome variable. We can easily slice the data set using the minus sign in front of the 1 which translates to every column except the first one.
+
+To read the first confusion matrix correctly, let us check the reality of the diagnosis in the training set by running a table call.
+```{r}
+table(train2$diagnosis)
+```
+
+The table tells us that in the train set we have 69 cases of impaired patients and 182 cases of control patients for a total of 251 records. If we look back at the confusion matrix we can see that when we run our prediction against our own training data - a process that is referred to as cross-validation - we get that:
+
+* Of the 69 impaired patients our model correctly identified 12 and wrongly labeled as impaired 57 control patients. These 57 patients are known as false positives since we are predicting them as probably sick while they are not. This is not very good and it shows in our positive predictive value of 17%.
+
+* Of the 182 control patients our model correctly labeled 173 and only mislabeled 9. Those nine are false negatives but the ratio is much better, and it shows in the negative predictive value of 95%.
+
+Overall the model has an accuracy of 0.7371, which is good to a point since we are measuring against our training data. Our model should tune not only to the signal, but also to the noise, and is probably overfitting (being too optimistic in its assumptions.) At this point we will check our prediction capacity using our test set. The methodology is the same, the only change is the data sets. We will obtain the true values of the diagnosis of our test patients from test2$diagnosis, and then compare them to the prediction value of our model using the model we worked on our training set, but feeding it with the new data of the test set.
+
+```{r}
+table(test2$diagnosis)
+confusionMatrix(test2[, 1], predict(fit1, newdata = test2[, -1]))
+```
+
+Our test data has 22 impaired patients and 60 control patients for a total of 82 cases. How does our model compare to test data in prediction power?
+
+* Of the 22 impaired cases we only correctly identified 2 and mislabeled 20.
+
+* Of the 60 control cases we identified correctly 51 and only mislabeled 9, a much better performance.
+
+Overall the accuracy of the prediction function using a general linear model and validated using test data is of 0.6463. This is a little lower than optimal and lower than the training set, but that was to be expected. The error rate should always be bigger in the test set to ensure we are not overfitting a model. Despite using twelve predictor variables the model doesn't do a great job predicting either a patient being control or impaired.
+
+Is there a way to explain more of the model and data using less variables? This is where __Principal Component Analysis__ comes from.  
