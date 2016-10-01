@@ -26,3 +26,7 @@ text(modFit$finalModel, use.n = TRUE, all = TRUE, cex = 0.8)
 # Pretty tree version - BUT ONLY WORKS IF YOU INSTALL GTK+
 library(rattle)
 fancyRpartPlot(modFit$finalModel)
+
+# Predict new values with the testing set
+predict(modFit, newdata = testing)
+confusionMatrix(predict(modFit, newdata = testing), testing$Species)
