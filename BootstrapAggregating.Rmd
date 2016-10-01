@@ -1,0 +1,94 @@
+---
+title: "Bootstrap Aggregating"
+author: "Ariel Meilij"
+date: "September 30, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+Bootstrap aggregation, also known as __bagging__, is a Machine Learning method based on a few basic principles:
+
+* Resample cases and recalculate predictions
+* Average results or majority vote
+
+This method has the advantages of:
+
+* Similar bias
+* Reduced variance
+* More useful for non-linear functions
+
+## Building an Example of Bagging
+
+Let's see an example with the ozone data set.
+
+```{r loadOzoneData}
+library(ElemStatLearn)
+data(ozone, package = "ElemStatLearn")
+ozone <- ozone[order(ozone$ozone), ]
+head(ozone)
+```
+
+The example below (taken directly from the COURSERA Johns Hopkings University Practical Machine Learning class) is a bit intricate, but it basically builds 10 resampled sets from where to extract 10 Loess curves from the data. 
+
+```{r BaggedLoess}
+ll <- matrix(NA, nrow = 10, ncol = 155)
+for(i in 1:10) {
+  ss <- sample(1:dim(ozone)[1], replace = TRUE)
+  ozone0 <- ozone[ss, ]
+  ozone0 <- ozone0[order(ozone0$ozone), ]
+  loess0 <- loess(temperature ~ ozone, data = ozone0, span = 0.2)
+  ll[i, ] <- predict(loess0, newdata = data.frame(ozone = 1:155))
+}
+```
+
+Loess is a smoothing curve to fit through the data, much like a spline. We can see the effect plotting the 10 sampled lines and the average line. The code above can see daunting, but we can break it down into pieces to get to know it well.
+
+* The first line creates the matrix ll, a matrix of 10 rows and 155 columns. Ten is for the resamplings we will do, and 155 is one for every temperature observation in ozone data.
+* The second line creates a loop; we will loop 10 times building 10 prediction vectors
+* Inside the first line of the loop, we set the value of ss to a sample taken from the ozone data, with the option to replace as TRUE. You can use <code>table(ss)</code> to see how values are repeated since we set replace option to TRUE.
+* Next we pass the values of the ozone vector from rows __ss__ to the variable ozone0; this is a temporary variable just to store these values 
+* The next line is just sorting the values from small to large
+* Finally, we use the values in ozone0, a vector with resampled values from ozone and ordered, to create a loess smoother with  __temperature__ values based on the predictor __ozone__, storing the predictions in the loess0 variable
+* Finally we store in the ll matrix, moving one row at a time, a prediction of new temperature values using the loess smoother, with newdata creates using the ozone values 1 to 155
+
+It is a little more complex because we take more steps to create the loop, sample from the ozone data set, create the loess smoother, and then the prediction using a loess object. Using objects to created more predictions is sometimes a bit harder to understand in R, but that is the way the language works. 
+
+```{r BaggedLoessPlot}
+plot(ozone$ozone, ozone$temperature, pch = 19, cex = 0.5, xlab = "OZONE", ylab = "Temperature in Centigrades")
+for (i in 1:10) {
+  lines(1:155, ll[i, ], col = "grey", lwd = 2)
+}
+lines(1:155, apply(ll, 2, mean), col = "red", lwd = 2)
+```
+
+The last line might be hard to see, but we are basically plotting:
+
+* The ozone points in x from 1 to 155
+* The mean temperature stored in the 10 predictions of ll using the apply command (nifty!)
+* All as a red line, highly visible among the greay ones. 
+
+# Bagging with Caret
+Alternatively, you can bag any model you choose using the bag option. You can even construct your own.
+
+```{r bagConstruct}
+library(party)
+predictors = data.frame(ozone=ozone$ozone)
+temperature = ozone$temperature
+treebag <- bag(predictors, temperature, B = 10,
+                bagControl = bagControl(fit = ctreeBag$fit,
+                                        predict = ctreeBag$pred,
+                                        aggregate = ctreeBag$aggregate))
+
+plot(ozone$ozone,temperature,col='lightgrey',pch=19)
+points(ozone$ozone,predict(treebag$fits[[1]]$fit,predictors),pch=19,col="red")
+points(ozone$ozone,predict(treebag,predictors),pch=19,col="blue")
+```
+
+Using the bago function requires careful thinking and deep knowledge of the many options available within the code. If you execute the plot one line at a time you will see that a) the gray lines are the ozone temperatures, b) the red ones are the predictions from one particular model, and c) the blue lines are the aggregations from several models, and capture a little better the prediction model.
+
+# Conclusion
+Bagging is very useful with non-linear models. It's often used with trees. An extension of bagging is random forests. Several models use bagging in Caret's train function. I hope you enjoyed this small example of using Bootstrap Aggregation. 
