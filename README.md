@@ -11,6 +11,9 @@ This is a very simple example of what happpens when you overfit a model. It's th
 __BasicPreprocessing.R__
 While it is tempting to start training a predictor from the get go, most datasets will require some preprocessing. Maybe the data is skewed, or maybe some data needs imputation. Many good examples to follow on stardardizing and such.
 
+__BasicTreeCalssification.R__
+Classifying with trees is a fun algorithm for predicting if an entity belongs or not to a class. These methods are better for predictions in non-linear environments. 
+
 __BoxCox.R__
 BoxCox transformation takes continuous data and tries to mimic normal data. It does so estimating a set of parameters using maximum likelihood. Maybe for the uber-Statistician but handy when needed.
 
