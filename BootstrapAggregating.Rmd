@@ -27,6 +27,8 @@ Let's see an example with the ozone data set.
 
 ```{r loadOzoneData}
 library(ElemStatLearn)
+library(party)
+library(caret)
 data(ozone, package = "ElemStatLearn")
 ozone <- ozone[order(ozone$ozone), ]
 head(ozone)
@@ -74,21 +76,18 @@ The last line might be hard to see, but we are basically plotting:
 # Bagging with Caret
 Alternatively, you can bag any model you choose using the bag option. You can even construct your own.
 
-```{r bagConstruct}
+```{r}
 library(party)
-predictors = data.frame(ozone=ozone$ozone)
-temperature = ozone$temperature
-treebag <- bag(predictors, temperature, B = 10,
-                bagControl = bagControl(fit = ctreeBag$fit,
-                                        predict = ctreeBag$pred,
-                                        aggregate = ctreeBag$aggregate))
+predictors  <- data.frame(ozone = ozone$ozone)
+temperature <- ozone$temperature
+treebag <- bag(predictors, temperature, B = 10, bagControl = bagControl(fit = ctreeBag$fit, predict = ctreeBag$pred, aggregate = ctreeBag$aggregate))
 
-plot(ozone$ozone,temperature,col='lightgrey',pch=19)
-points(ozone$ozone,predict(treebag$fits[[1]]$fit,predictors),pch=19,col="red")
-points(ozone$ozone,predict(treebag,predictors),pch=19,col="blue")
+plot(ozone$ozone, temperature, col = 'lightgrey', pch = 19)
+points(ozone$ozone, predict(treebag$fits[[1]]$fit, predictors), pch = 19, col = "red")
+points(ozone$ozone, predict(treebag, predictors), pch = 19, col = "blue")
 ```
 
-Using the bago function requires careful thinking and deep knowledge of the many options available within the code. If you execute the plot one line at a time you will see that a) the gray lines are the ozone temperatures, b) the red ones are the predictions from one particular model, and c) the blue lines are the aggregations from several models, and capture a little better the prediction model.
+Using the bag function requires careful thinking and deep knowledge of the many options available within the code. If you execute the plot one line at a time you will see that a) the gray lines are the ozone temperatures, b) the red ones are the predictions from one particular model, and c) the blue lines are the aggregations from several models, and capture a little better the prediction model.
 
 # Conclusion
 Bagging is very useful with non-linear models. It's often used with trees. An extension of bagging is random forests. Several models use bagging in Caret's train function. I hope you enjoyed this small example of using Bootstrap Aggregation. 
