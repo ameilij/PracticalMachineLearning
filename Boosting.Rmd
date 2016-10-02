@@ -1,0 +1,98 @@
+---
+title: 'SHORT NOTES: Boosting'
+author: "Ariel Meilij"
+date: "October 2, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+The following notes are from the COURSERA Practical Machine Learning course, and are intended to help others understand the concepts and code behind the math.The basic idea behind bosting is to take lots of possibly weak predictors, then we weight them and add them up. Thus we get a stronger one. We could see two clear steps:
+
+A. Start with a set of classifiers ($h_1$, $h_2$, ..., $h_n$). For example, these could be all possible trees, all possible regressions, etc. 
+
+B. Create a classifier that combines classification functions 
+
+<center><strong>$f(x) = sgn(\sum_{i=1}^t \alpha_i h_+ (X))$</center></strong>
+
+Several things we want to obtain with this process:
+
+* The goal is to minimize error (on the training set)
+* Iteratively, select one _h_ at each step
+* Calculate weights based on errors
+* Upweight missed classifications and select next _h_
+
+The most famous boosting algorithm is __ADAboost__.
+
+## Boosting in R
+Boosting in R can be used with any subset of classifiers. One large subclass of boosting is gradient boosting. R has multiple libraries for boosting. The differences include the choice of basic classification function and combination rules. 
+
+* __gbm__: boosting with trees
+
+* __mboost__: model based boosting
+
+* __ada__: statistical boosting based on additive logistic regression
+
+* __gamBoost__: for boosting generalized additive models
+
+Most of these are already included in the __caret__ package, making the implementation relatively easy. 
+
+## Boosting Example
+For our boosting example, we will use the ISLR package and the Wage data set included. The idea here is to try to predict wage based on the many other predictors included. 
+
+```{r loadData}
+# Load ISRL data
+library(ISLR)
+data("Wage")
+library(ggplot2)
+library(caret)
+head(Wage)
+```
+
+Now that we have our data we can create training and testing sets. For the problem at hand, there is no pre-processing of the data necessary, but for other types of prediction models, such as regression, some pre-processing is required for non-numerical values or variables with no variability because of predominance of zero values. 
+
+``` {r createTrainTestSets}
+# Create training and testing sets
+wage <- subset(Wage, select = -c(logwage))
+inTrain <- createDataPartition(y = wage$wage, p = 0.7, list = FALSE)
+training <- wage[inTrain, ]
+testing <- wage[-inTrain, ]
+```
+
+Fitting a __boosting__ model in R using the __caret__ package is very easy. The syntax is much like any other for training a data set, just include the option <code>method = "gbm"</code> in the option line.
+
+``` {r createModel, error = FALSE, warning = FALSE, message = FALSE}
+# Fit a model using boosting
+modFit <- train(wage ~ ., method = "gbm", data = training, verbose = FALSE)
+print(modFit)
+```
+
+Word of caution, boosting takes a little more of processing time in some computers, so you might have to wait a few seconds for the function to return the model object. If you run this code yourself you will see multiple warning messages related to the non-processing of the data previous to the exercise (not necessary for this simple example.) If you look closely, you will see that the function chose a Stochastic Gradient Boosting model, 2102 samples and 10 predictors. Mind you, there is a difference between observations in the training set and the final boosting model since it has resampled from our training set with bootstrap (25 reps.) The output says the summary of sample sizes is 2102, so we will keep that in mind when we try to cross-validate and test the model. 
+
+## Testing the Model
+Remember boosting resampled the training data set, so now it has less observations than in the original. Thus it is hard to cross-validate with the same data (length of vectors are not the same!) What we will do now is use the testing data to plot real wage data from the test set against the wage prediction from our model using the test data. These are numerical outcomes, a little harder to see on a confussion matrix but more visible in a plot.
+
+``` {r plotPrediction}
+qplot(y = predict(modFit, testing), x = wage, data = testing, ylab = "Prediction of Wage", xlab = "Wage")
+```
+
+If you look at the plot, our model seems to capture quite well those lower-bound wages, but there is a group of higher-wages that seem to fall out of our prediction capacity. We can see a quick rundown of our wage prediction ranges and real wages using the cut function.
+
+```{r validatePrediction}
+predWage <- cut(predict(modFit, testing), 5)
+realWage <- cut(testing$wage, 5)
+
+summary(predWage)
+summary(realWage)
+```
+
+While the real wages vary from 19.8 to 319.0, our prediction only ranges from 61.1 to 169.0. This is concentrated in the second and third subsets of real wages. 
+
+## Conclusion
+Despite having some problem with higher salaries, we clearly saw from the plot a good amount of prediction power between real wages and estimations. What is clear is the power of boosting taking rather weak predictors and incrementing their capacity through resampling for much more accurate prediction power. 
+
+**Panama | October 2, 2016**
+
