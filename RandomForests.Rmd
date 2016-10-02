@@ -1,0 +1,83 @@
+---
+title: 'SHORT NOTES: Random Forests'
+author: "Ariel Meilij"
+date: "October 1, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+The following notes are from the COURSERA Practical Machine Learning course, and are intended to help others understand the concepts and code behind the math. Random Forests are an extension of Bootstrap Aggregating. The basic idea behind is very simple. 
+
+1. Bootstrap samples
+2. At each split, bootstrap variables
+3. Grow multiple trees and vote
+
+The pros of Random Forest is their accuracy. However the method has several cons; speed is an issue since your computer will feel the toll of running heavy Random Forest models. The method is prone to overfitting, and interpretation is ambigous, given that it might be hard to interpret exactly what branch is explaining what effect. 
+
+The method works by building multiple trees from resampled data. At each node, we let a different sample of variables contribute. For each observation we run them through the multiple trees, each for different nodes. In each case we'll get a prediction which we will average. This would probably be very complicated without computers or tidy computer languages like R. But using the __caret__ library, most of the heavy lifting is done by R functions.
+
+## Code Example
+We will use the iris data set to create a random forest model and try to accurately predict classification of flower species.
+
+```{r loadData}
+library(caret)
+data(iris)
+library(ggplot2)
+names(iris)
+table(iris$Species)
+```
+
+As you can see, there is only three possible classifications in the data set (setosa, versicolor, and virginica.) We will split the data into training and testing set, and the proceed to train a model using Random Forest.
+
+```{r modelCreation}
+inTrain <- createDataPartition(y = iris$Species, p = 0.7, list = FALSE)
+training <- iris[inTrain, ]
+testing <- iris[-inTrain, ]
+
+modFit <- train(Species ~ ., data = training, method = "rf", prox = TRUE)
+modFit
+```
+
+The training algorith is very simple. We tell the <code>train</code> function to create a predictor model using Species as the outcome variable and all others as predictors; we pass the training set as data, and indicate the method to use should be Random Forest with <code>method = "rf"</code>. The <code>prox = TRUE</code> addition is to let R know we want the center of classes available for later use (soon we will check into that.) Right away we see some high accuracy numbers, so the classification method should be very accurate itself. We can check into a single tree from the training set by using:
+
+```{r checkTree}
+getTree(modFit$finalModel, k =2)
+```
+
+## Random Forest Centers
+We can use Random Forest Centers to see the centers of class predictions on a plot. This is a very easy cue as to what to expect on class allocation and where the boundaries from one class to the next might make the prediction inaccurate. 
+
+```{r classCenters}
+irisP <- classCenter(training[, c(3,4)], training$Species, modFit$finalModel$proximity)
+irisP <- as.data.frame(irisP)
+irisP$Species <- rownames(irisP)
+
+p <- qplot(Petal.Width, Petal.Length, col = Species, data = training)
+p + geom_point(aes(x = Petal.Width, y = Petal.Length, col = Species), size = 5, shape = 4, data = irisP)
+```
+
+## Making Predictions with Random Forest
+The only reason to train a model is to make predictions with it! Let's see how well our trained model does with the testing set data. 
+
+```{r testModel}
+# Predicting new values with random forests models
+pred <- predict(modFit, testing)
+testing$predRight <- pred == testing$Species
+table(pred, testing$Species)
+```
+
+Not bad! We only seem to have two discrepancies, where a versicolor is predicted as a virginica and viceversa. If you look at the prior plot, this is a probable case since the two classes share a common boundary which makes prediction a bit fuzzy. We can validate this easily with another plot:
+
+```{r validatePredictionPlot}
+qplot(Petal.Width, Petal.Length, colour = predRight, data = testing, main = "Predictions Based on Test Set")
+```
+
+As we suspected, the false positives are located right in the boundaries between the two classes. 
+
+## Conclusions
+Random Forests are usually one of the two top performing algorithms along with Boosting in prediction contests such as Kaggle. They are difficult to interpret given their intricate methodology, but their accuracy makes-up for this short-coming. The only word of caution is to be careful and avoid overfitting the data challenging the model from the training set with as many cross-validations as possible before moving to the test set. 
+
