@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## Introduction
-The following notes are from the COURSERA Practical Machine Learning course, and are intended to help others understand the concepts and code behind the math.The basic idea behind bosting is to take lots of possibly weak predictors, then we weight them and add them up. Thus we get a stronger one. We could see two clear steps:
+The following notes are from the COURSERA Practical Machine Learning course, and are intended to help others understand the concepts and code behind the math.The basic idea behind boosting is to take lots of possibly weak predictors, then we weight them and add them up. Thus we get a stronger one. We could see two clear steps:
 
 A. Start with a set of classifiers ($h_1$, $h_2$, ..., $h_n$). For example, these could be all possible trees, all possible regressions, etc. 
 
