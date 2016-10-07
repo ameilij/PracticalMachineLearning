@@ -1,0 +1,100 @@
+---
+title: "Ensembling Methods"
+author: "Ariel Meilij"
+date: "October 6, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction to Combining Predictors
+Combining predictors - or __emsembling methods__ - is a method in which we combine classifiers by voting and/or averaging. Combining classifiers improves accuracy but reduces interpretability. Boosting, bagging, and random forests are variants on this theme. For example, the Netflix price was won by combining 107 predictors.
+
+### Basic Intuition - Majority Vote
+Suppose we have 5 completely independent classifiers. If accuracy is of 70% each, we can use the binomial theorem to calculate the approximate accuracy.
+
+<center><strong>\[10 * (0.7)^{3} + 5 * (0.7)^4 (0.3)^1 + (0.7)^5 = 83.7\%\]</strong></center>
+
+With 101 independent predictors, the accuracy rate could go as high as 99.9% on majority vote. 
+
+### Approaches for Combining Classifiers
+
+1. __Bagging, Boosting, Random Forests__: usually combine similar classifiers.
+
+2. __Combining different classifiers__: this is called model stacking and model ensembling
+
+## Example with Wage Dataset
+In order to get a better sense of the use of stacked classifiers, let's review an example using the __Wage__ data set.
+
+```{r loadData}
+library(ISLR)
+data(Wage)
+library(ggplot2)
+library(caret)
+
+wage <- subset(Wage, select = -c(logwage))
+
+inBuild <- createDataPartition(y = wage$wage, p = 0.7, list = FALSE)
+
+validation <- wage[-inBuild, ]
+buildData <- wage[inBuild, ]
+
+inTrain <- createDataPartition(y = buildData$wage, p = 0.7, list = FALSE)
+
+training <- buildData[inTrain, ]
+testing <- buildData[-inTrain, ]
+
+dim(training)
+dim(testing)
+dim(validation)
+```
+
+It's worth checking the code to see exactly what is going on. The usual is to divide the data into training and test sets. But in this case, we are building training, validation, and test sets. The idea behind cross-validation is to use the training data to train your model and the cross-validation to check the exactitude of your models. If you need to continue to work your model, you do so on the training set and keep validating on your validation set. However, you don't use the testing set until the end of the cycle to test the validity of your model. There is a small probability that you cycle several times through to your training and validation data satisfactorily, only to watch your model fail the test data with low prediction power. In such a case, the right thing to do is to start all over again. 
+
+In the code, we create the <code>inBuild</code> variable which is nothing more than an index list of records. From this list of records we create two new data sets, a validation data set (in a very similar way we would create the testing set) and a data set of those records not in the validation set. Think of it as a reduced data set from the original. From that set we build the training and testing sets, so in total we have three data sets to work with: training, validation, and testing. 
+
+Now we can start working on building two models, one with a general linear model and the next using random forests classifiers. 
+
+```{r buildModels, warning = FALSE, message = FALSE, error = FALSE }
+model1 <- train(wage ~ ., method = "glm", data = training)
+model2 <- train(wage ~ ., method = "rf", data = training, trControl = trainControl(method="cv"),number=3)
+```
+
+How well did we do in the predictions? We can predict each model on the testing set and then plot them on the same cartesian axis. If the predictions hold, the plot should give us a rather straight line similar to the identity function. 
+
+```{r plotPredictions}
+pred1 <- predict(model1, testing)
+pred2 <- predict(model2, testing)
+qplot(pred1, pred2, colour = wage, data = testing)
+```
+
+Sadly the plot is not quite the forty-five degree straight line we were expecting. From the plot we can see the points are close to each other, but don't perfectly match, nor the predictions with the actual wage as evidence of the color coding. However, we can combine two predictors to create a stronger combined predictor. 
+
+```{r combinedPredictor}
+predDF <- data.frame(pred1,pred2,wage=testing$wage)
+combModFit <- train(wage ~.,method="gam",data=predDF)
+combPred <- predict(combModFit,predDF)
+```
+
+How much better is our prediction power now? Checking for the RMSE (root mean square error) is the best way to determine how much better a combined predictor is. 
+
+```{r}
+# RMSE of the first model - glm
+sqrt(sum((pred1-testing$wage)^2))
+
+# RMSE of the second model - random forest
+sqrt(sum((pred2-testing$wage)^2))
+
+# RMSE of the combined model
+sqrt(sum((combPred-testing$wage)^2))
+```
+
+Looking at the values closely, the first model has a root mean square error rate of 841.5453. The second model is a bit more off with an error rate of 883.8073. But the combined model wins over both of them with an error rate of 835.7844. Clearly, the combined model is a better model despite not being a perfect model, as we can see in the plot below.
+
+```{r plotCombinedModel}
+qplot(combPred, testing$wage, colour = testing$wage, main = "Combined Classifier Prediction Wage vs. Test Set" )
+```
+
+

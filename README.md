@@ -42,6 +42,9 @@ Samples on data slicing with the Caret package.
 __caretExample1.R__
 First entry point for very simple creation of test and training data sets.
 
+__ensemblingMethods__
+Combining predictors - or *ensembling methods* - is a method in which we combine classifiers by voting and/or averaging. Combining classifiers improves accuracy but reduces interpretability. Boosting, bagging, and random forests are variants on this theme. For example, the Netflix price was won by combining 107 predictors.
+
 __imputingData.R__
 Examples of how to properly impute data so your predictors don't suffer.
 
