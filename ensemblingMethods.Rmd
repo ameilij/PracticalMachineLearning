@@ -97,4 +97,37 @@ Looking at the values closely, the first model has a root mean square error rate
 qplot(combPred, testing$wage, colour = testing$wage, main = "Combined Classifier Prediction Wage vs. Test Set" )
 ```
 
+## Predicting Values with Test Set
+The last step towards using ensembling predictors is to try our combined model in the test set.
+
+```{r testDataValidation}
+pred1V <- predict(model1, validation)
+pred2V <- predict(model2, validation)
+predVDF <- data.frame(pred1 = pred1V, pred2 = pred2V)
+combPredV <- predict(combModFit, predVDF)
+```
+
+The code is simple to follow. We have built to prediction vectors using the models 1 and 2 and the validation set. We combine the two prediction vectors into a merged data frame (merged with two sets of predictions) and we use that same exact merged data frame as input for a combined predictive model using the combined model object __combModFit__. The error of each model gives us their respective accuracy.
+
+```{r validateRMSE}
+sqrt(sum((pred1V - validation$wage)^2))
+sqrt(sum((pred2V - validation$wage)^2))
+sqrt(sum((combPredV - validation$wage)^2))
+```
+
+Once more we see the combined model has a lower error. Stacking models this way can improve accuracy by blending the strenght of different models into one combined, higher ranking model. 
+
+## Notes on Ensembling Models
+Some notes on ensembling models.
+
+* Even simple blending can be useful.
+
+* Typical model for binary/multiclass data is to build an odd number of models, predict with each model, and then predict class by majority vote. 
+
+* This can get dranatically more complicated! You can use he Caret package __caretEnsemble__, but it is still in its early stages. 
+
+And remember, *scalability matters!*
+
+aem - October 2016 
+
 
